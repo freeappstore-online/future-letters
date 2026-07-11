@@ -1,0 +1,14 @@
+{
+  "name": "future-letters",
+  "private": true,
+  "packageManager": "pnpm@10.30.3",
+  "engines": { "node": ">=22" },
+  "pnpm": { "onlyBuiltDependencies": ["esbuild"] },
+  "scripts": {
+    "dev": "pnpm --filter @future-letters/web dev",
+    "build": "pnpm --filter @future-letters/web build",
+    "preview": "pnpm --filter @future-letters/web preview",
+    "typecheck": "pnpm --filter @future-letters/web exec tsc -b",
+    "test": "pnpm --filter @future-letters/web test"
+  }
+}
