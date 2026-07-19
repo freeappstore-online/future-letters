@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Shell } from "./components/Shell";
 import { LetterEditor } from "./components/LetterEditor";
 import { LetterViewer } from "./components/LetterViewer";
@@ -15,7 +15,7 @@ function loadLetters(): Letter[] {
     const data = localStorage.getItem(STORAGE_KEY);
     const parsed: Letter[] = data ? JSON.parse(data) : [];
     // back-compat: letters saved before deliveryTime existed
-    return parsed.map((l) => ({ deliveryTime: "09:00", notificationScheduled: false, ...l }));
+    return parsed.map((l) => ({ deliveryTime: "09:00", ...l }));
   } catch {
     return [];
   }
@@ -63,77 +63,15 @@ function daysUntil(letter: Letter): number {
   return Math.max(0, Math.ceil(diff / 86_400_000));
 }
 
-// ── notification scheduling ───────────────────────────────────────────────────
-
-/**
- * Schedule a single browser notification for a letter.
- * Uses setTimeout internally; the timeout id is stored in a ref map
- * so we can cancel it if the user deletes the letter.
- * NOTE: setTimeout only fires while the tab is open — this is a
- * best-effort reminder, not a push notification.
- */
-function scheduleNotification(
-  letter: Letter,
-  timeoutMap: React.MutableRefObject<Map<string, ReturnType<typeof setTimeout>>>
-) {
-  if (!("Notification" in window) || Notification.permission !== "granted") return;
-
-  // Cancel any existing timer for this letter
-  const existing = timeoutMap.current.get(letter.id);
-  if (existing !== undefined) clearTimeout(existing);
-
-  const delay = deliveryDateTime(letter).getTime() - Date.now();
-  if (delay <= 0) return; // already past
-
-  const tid = setTimeout(() => {
-    const writtenOn = formatDate(letter.createdAt);
-    new Notification("✉️ A letter from your past self!", {
-      body: `"${letter.title}" — written on ${writtenOn} is ready to open!`,
-      icon: "/manifest.json", // fallback icon
-      tag: `future-letter-${letter.id}`,
-    });
-    timeoutMap.current.delete(letter.id);
-  }, delay);
-
-  timeoutMap.current.set(letter.id, tid);
-}
-
-function cancelNotification(
-  letterId: string,
-  timeoutMap: React.MutableRefObject<Map<string, ReturnType<typeof setTimeout>>>
-) {
-  const tid = timeoutMap.current.get(letterId);
-  if (tid !== undefined) {
-    clearTimeout(tid);
-    timeoutMap.current.delete(letterId);
-  }
-}
-
 // ── component ─────────────────────────────────────────────────────────────────
 
 export default function App() {
-  const [letters, setLetters]           = useState<Letter[]>(loadLetters);
-  const [page, setPage]                 = useState<Page>("home");
+  const [letters, setLetters]             = useState<Letter[]>(loadLetters);
+  const [page, setPage]                   = useState<Page>("home");
   const [viewingLetter, setViewingLetter] = useState<Letter | null>(null);
-  const notifTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // persist
   useEffect(() => { saveLetters(letters); }, [letters]);
-
-  // (re-)schedule notifications for all sealed letters on mount + when letters change
-  useEffect(() => {
-    if (!("Notification" in window) || Notification.permission !== "granted") return;
-    letters.forEach((l) => {
-      if (!isDelivered(l) && l.notificationScheduled) {
-        scheduleNotification(l, notifTimers);
-      }
-    });
-    // cleanup timers for letters that are gone
-    const ids = new Set(letters.map((l) => l.id));
-    notifTimers.current.forEach((_, id) => {
-      if (!ids.has(id)) cancelNotification(id, notifTimers);
-    });
-  }, [letters]);
 
   // derived lists
   const sealedLetters    = letters.filter((l) => !isDelivered(l));
@@ -148,15 +86,10 @@ export default function App() {
 
   const handleSaveLetter = useCallback((letter: Letter) => {
     setLetters((prev) => [letter, ...prev]);
-    // schedule notification if permission already granted
-    if (letter.notificationScheduled) {
-      scheduleNotification(letter, notifTimers);
-    }
     setPage("sealed");
   }, []);
 
   const handleOpenLetter = useCallback((letter: Letter) => {
-    cancelNotification(letter.id, notifTimers);
     setLetters((prev) =>
       prev.map((l) => (l.id === letter.id ? { ...l, opened: true } : l))
     );
@@ -164,7 +97,6 @@ export default function App() {
   }, []);
 
   const handleDeleteLetter = useCallback((id: string) => {
-    cancelNotification(id, notifTimers);
     setLetters((prev) => prev.filter((l) => l.id !== id));
     setViewingLetter(null);
     setPage("home");
@@ -315,9 +247,6 @@ export default function App() {
                         <span className="block text-xs mt-0.5" style={{ color: "var(--muted)" }}>
                           🕐 {formatDateTime(letter)} {letter.mood && `• ${letter.mood}`}
                         </span>
-                        {letter.notificationScheduled && (
-                          <span className="text-xs" style={{ color: "var(--success)" }}>🔔 Reminder set</span>
-                        )}
                       </div>
                       <div className="text-right shrink-0 ml-3">
                         <div className="text-sm font-bold" style={{ color: "var(--accent)" }}>
@@ -381,7 +310,7 @@ export default function App() {
               {[...sealedLetters]
                 .sort((a, b) => deliveryDateTime(a).getTime() - deliveryDateTime(b).getTime())
                 .map((letter) => {
-                  const totalMs  = deliveryDateTime(letter).getTime() - new Date(letter.createdAt).getTime();
+                  const totalMs   = deliveryDateTime(letter).getTime() - new Date(letter.createdAt).getTime();
                   const elapsedMs = Date.now() - new Date(letter.createdAt).getTime();
                   const progress  = Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100));
                   const days      = daysUntil(letter);
@@ -401,11 +330,6 @@ export default function App() {
                           <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>
                             🕐 Opens {formatDateTime(letter)}
                           </p>
-                          {letter.notificationScheduled && (
-                            <p className="text-xs mt-0.5" style={{ color: "var(--success)" }}>
-                              🔔 Notification scheduled
-                            </p>
-                          )}
                         </div>
                         <div className="text-right shrink-0 ml-3">
                           <div

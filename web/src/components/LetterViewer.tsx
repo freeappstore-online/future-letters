@@ -23,10 +23,10 @@ function formatDateTime(letter: Letter) {
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const days = Math.floor(diff / 86_400_000);
-  if (days === 0)   return "today";
-  if (days === 1)   return "yesterday";
-  if (days < 30)    return `${days} days ago`;
-  if (days < 365)   return `${Math.floor(days / 30)} months ago`;
+  if (days === 0)  return "today";
+  if (days === 1)  return "yesterday";
+  if (days < 30)   return `${days} days ago`;
+  if (days < 365)  return `${Math.floor(days / 30)} months ago`;
   return `${Math.floor(days / 365)} years ago`;
 }
 
@@ -56,9 +56,6 @@ export function LetterViewer({ letter, onClose, onDelete }: LetterViewerProps) {
           <div className="space-y-1 text-xs" style={{ color: "var(--muted)" }}>
             <div>✍️ Written on {formatDate(letter.createdAt)} — {timeAgo(letter.createdAt)}</div>
             <div>🕐 Delivered on {formatDateTime(letter)}</div>
-            {letter.notificationScheduled && (
-              <div style={{ color: "var(--success)" }}>🔔 You had a notification reminder set</div>
-            )}
           </div>
         </div>
 

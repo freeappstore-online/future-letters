@@ -51,7 +51,6 @@ export interface Letter {
   createdAt: string;   // ISO string
   opened: boolean;
   mood: string;
-  notificationScheduled: boolean;
 }
 
 function generateId() {
@@ -89,21 +88,6 @@ export function LetterEditor({ onSave, onCancel }: LetterEditorProps) {
   const [deliveryTime, setDeliveryTime] = useState("09:00");
   const [mood, setMood]                 = useState("");
   const [showBlockMenu, setShowBlockMenu] = useState(false);
-  const [notifStatus, setNotifStatus]   = useState<"idle" | "granted" | "denied" | "unsupported">("idle");
-
-  // ── notification permission ──────────────────────────────────────────────
-  async function requestNotifPermission() {
-    if (!("Notification" in window)) {
-      setNotifStatus("unsupported");
-      return;
-    }
-    if (Notification.permission === "granted") {
-      setNotifStatus("granted");
-      return;
-    }
-    const result = await Notification.requestPermission();
-    setNotifStatus(result === "granted" ? "granted" : "denied");
-  }
 
   // ── blocks ───────────────────────────────────────────────────────────────
   const addBlock = (type: BlockType) => {
@@ -150,7 +134,6 @@ export function LetterEditor({ onSave, onCancel }: LetterEditorProps) {
       createdAt: new Date().toISOString(),
       opened: false,
       mood,
-      notificationScheduled: notifStatus === "granted",
     };
     onSave(letter);
   };
@@ -169,9 +152,6 @@ export function LetterEditor({ onSave, onCancel }: LetterEditorProps) {
         hour: "2-digit", minute: "2-digit",
       })
     : null;
-
-  const notifEnabled = "Notification" in window;
-  const currentPermission = notifEnabled ? Notification.permission : "unsupported";
 
   return (
     <div className="max-w-2xl mx-auto">
@@ -205,7 +185,7 @@ export function LetterEditor({ onSave, onCancel }: LetterEditorProps) {
       </div>
 
       {/* Delivery Date + Time */}
-      <div className="mb-5">
+      <div className="mb-6">
         <label className="block text-sm font-semibold mb-2" style={{ color: "var(--muted)" }}>
           📅 Delivery Date &amp; Time — When should future you read this?
         </label>
@@ -247,51 +227,6 @@ export function LetterEditor({ onSave, onCancel }: LetterEditorProps) {
             <span>Opens on <strong style={{ color: "var(--ink)" }}>{deliveryPreview}</strong></span>
           </div>
         )}
-      </div>
-
-      {/* Notification opt-in */}
-      <div
-        className="mb-6 p-4 border"
-        style={{ borderRadius: "1.25rem", borderColor: "var(--line)", background: "var(--panel)" }}
-      >
-        <div className="flex items-start gap-3">
-          <span className="text-2xl mt-0.5">🔔</span>
-          <div className="flex-1">
-            <p className="text-sm font-semibold mb-0.5">Remind me when it's time</p>
-            <p className="text-xs mb-3" style={{ color: "var(--muted)" }}>
-              Get a browser notification at exactly {deliveryPreview ?? "your chosen time"} so you never miss it.
-            </p>
-
-            {!notifEnabled && (
-              <p className="text-xs" style={{ color: "var(--warning)" }}>
-                ⚠️ Your browser doesn't support notifications.
-              </p>
-            )}
-
-            {notifEnabled && currentPermission === "denied" && (
-              <p className="text-xs" style={{ color: "var(--error)" }}>
-                🚫 Notifications are blocked. Enable them in your browser settings to get reminders.
-              </p>
-            )}
-
-            {notifEnabled && currentPermission === "default" && notifStatus !== "granted" && (
-              <button
-                onClick={requestNotifPermission}
-                className="text-sm font-semibold px-4 py-2 text-white transition-all hover:opacity-90"
-                style={{ borderRadius: "0.75rem", background: "var(--accent)" }}
-              >
-                Enable Notifications
-              </button>
-            )}
-
-            {(notifStatus === "granted" || currentPermission === "granted") && (
-              <div className="flex items-center gap-2 text-sm font-medium" style={{ color: "var(--success)" }}>
-                <span>✅</span>
-                <span>Notification will fire at your delivery time!</span>
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Mood */}
