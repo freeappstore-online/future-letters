@@ -8,22 +8,25 @@ interface LetterViewerProps {
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+  });
+}
+
+function formatDateTime(letter: Letter) {
+  const dt = new Date(`${letter.deliveryDate}T${letter.deliveryTime ?? "09:00"}`);
+  return dt.toLocaleString("en-US", {
+    weekday: "long", year: "numeric", month: "long", day: "numeric",
+    hour: "2-digit", minute: "2-digit",
   });
 }
 
 function timeAgo(dateStr: string) {
-  const now = new Date();
-  const then = new Date(dateStr);
-  const diff = now.getTime() - then.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) return "today";
-  if (days === 1) return "yesterday";
-  if (days < 30) return `${days} days ago`;
-  if (days < 365) return `${Math.floor(days / 30)} months ago`;
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const days = Math.floor(diff / 86_400_000);
+  if (days === 0)   return "today";
+  if (days === 1)   return "yesterday";
+  if (days < 30)    return `${days} days ago`;
+  if (days < 365)   return `${Math.floor(days / 30)} months ago`;
   return `${Math.floor(days / 365)} years ago`;
 }
 
@@ -40,11 +43,7 @@ export function LetterViewer({ letter, onClose, onDelete }: LetterViewerProps) {
 
       <div
         className="border p-6 sm:p-8 mb-6"
-        style={{
-          borderRadius: "1.25rem",
-          borderColor: "var(--line)",
-          background: "var(--panel)",
-        }}
+        style={{ borderRadius: "1.25rem", borderColor: "var(--line)", background: "var(--panel)" }}
       >
         {/* Header */}
         <div className="mb-6">
@@ -54,35 +53,32 @@ export function LetterViewer({ letter, onClose, onDelete }: LetterViewerProps) {
             </h2>
             {letter.mood && <span className="text-3xl">{letter.mood}</span>}
           </div>
-          <div className="flex flex-wrap gap-3 text-xs" style={{ color: "var(--muted)" }}>
-            <span>✍️ Written on {formatDate(letter.createdAt)}</span>
-            <span>•</span>
-            <span>That was {timeAgo(letter.createdAt)}</span>
+          <div className="space-y-1 text-xs" style={{ color: "var(--muted)" }}>
+            <div>✍️ Written on {formatDate(letter.createdAt)} — {timeAgo(letter.createdAt)}</div>
+            <div>🕐 Delivered on {formatDateTime(letter)}</div>
+            {letter.notificationScheduled && (
+              <div style={{ color: "var(--success)" }}>🔔 You had a notification reminder set</div>
+            )}
           </div>
         </div>
 
-        <div
-          className="w-full h-px mb-6"
-          style={{ background: "var(--line)" }}
-        />
+        <div className="w-full h-px mb-6" style={{ background: "var(--line)" }} />
 
         {/* Blocks */}
         <div className="space-y-6">
           {letter.blocks.map((block) => (
             <div key={block.id}>
+
+              {/* text */}
               {block.type === "text" && (
-                <div
-                  className="text-base leading-relaxed whitespace-pre-wrap"
-                  style={{ color: "var(--ink)" }}
-                >
+                <div className="text-base leading-relaxed whitespace-pre-wrap" style={{ color: "var(--ink)" }}>
                   {block.content || (
-                    <span style={{ color: "var(--muted)", fontStyle: "italic" }}>
-                      (empty section)
-                    </span>
+                    <span style={{ color: "var(--muted)", fontStyle: "italic" }}>(empty section)</span>
                   )}
                 </div>
               )}
 
+              {/* rating */}
               {block.type === "rating" && (
                 <div
                   className="p-4 border"
@@ -93,11 +89,8 @@ export function LetterViewer({ letter, onClose, onDelete }: LetterViewerProps) {
                   </p>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((star) => (
-                      <span
-                        key={star}
-                        className="text-xl"
-                        style={{ opacity: star <= (block as RatingBlock).rating ? 1 : 0.2 }}
-                      >
+                      <span key={star} className="text-xl"
+                        style={{ opacity: star <= (block as RatingBlock).rating ? 1 : 0.2 }}>
                         ⭐
                       </span>
                     ))}
@@ -108,6 +101,7 @@ export function LetterViewer({ letter, onClose, onDelete }: LetterViewerProps) {
                 </div>
               )}
 
+              {/* choice */}
               {block.type === "choice" && (
                 <div
                   className="p-4 border"
@@ -117,29 +111,23 @@ export function LetterViewer({ letter, onClose, onDelete }: LetterViewerProps) {
                     📋 {(block as ChoiceBlock).question || "Multiple Choice"}
                   </p>
                   <div className="space-y-2">
-                    {(block as ChoiceBlock).options.map((opt, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center gap-2 px-3 py-2 text-sm border"
-                        style={{
-                          borderRadius: "0.75rem",
-                          borderColor:
-                            (block as ChoiceBlock).selected === opt && opt
-                              ? "var(--accent)"
-                              : "var(--line)",
-                          background:
-                            (block as ChoiceBlock).selected === opt && opt
-                              ? "var(--accent)"
-                              : "transparent",
-                          color:
-                            (block as ChoiceBlock).selected === opt && opt
-                              ? "#fff"
-                              : "var(--ink)",
-                        }}
-                      >
-                        {(block as ChoiceBlock).selected === opt && opt ? "●" : "○"} {opt || "(empty)"}
-                      </div>
-                    ))}
+                    {(block as ChoiceBlock).options.map((opt, i) => {
+                      const chosen = (block as ChoiceBlock).selected === opt && opt;
+                      return (
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 px-3 py-2 text-sm border"
+                          style={{
+                            borderRadius: "0.75rem",
+                            borderColor: chosen ? "var(--accent)" : "var(--line)",
+                            background:  chosen ? "var(--accent)" : "transparent",
+                            color:       chosen ? "#fff"          : "var(--ink)",
+                          }}
+                        >
+                          {chosen ? "●" : "○"} {opt || "(empty)"}
+                        </div>
+                      );
+                    })}
                   </div>
                   <p className="text-xs mt-2" style={{ color: "var(--muted)" }}>
                     Past you chose: "{(block as ChoiceBlock).selected || "nothing"}"
@@ -147,6 +135,7 @@ export function LetterViewer({ letter, onClose, onDelete }: LetterViewerProps) {
                 </div>
               )}
 
+              {/* yesno */}
               {block.type === "yesno" && (
                 <div
                   className="p-4 border"
@@ -162,11 +151,9 @@ export function LetterViewer({ letter, onClose, onDelete }: LetterViewerProps) {
                         className="flex-1 py-2 text-center text-sm font-semibold border"
                         style={{
                           borderRadius: "0.75rem",
-                          borderColor:
-                            (block as YesNoBlock).answer === ans ? "var(--accent)" : "var(--line)",
-                          background:
-                            (block as YesNoBlock).answer === ans ? "var(--accent)" : "transparent",
-                          color: (block as YesNoBlock).answer === ans ? "#fff" : "var(--muted)",
+                          borderColor: (block as YesNoBlock).answer === ans ? "var(--accent)" : "var(--line)",
+                          background:  (block as YesNoBlock).answer === ans ? "var(--accent)" : "transparent",
+                          color:       (block as YesNoBlock).answer === ans ? "#fff"          : "var(--muted)",
                         }}
                       >
                         {ans === "yes" ? "👍 Yes" : "👎 No"}
@@ -179,6 +166,7 @@ export function LetterViewer({ letter, onClose, onDelete }: LetterViewerProps) {
                 </div>
               )}
 
+              {/* scale */}
               {block.type === "scale" && (
                 <div
                   className="p-4 border"
@@ -210,6 +198,7 @@ export function LetterViewer({ letter, onClose, onDelete }: LetterViewerProps) {
                   </p>
                 </div>
               )}
+
             </div>
           ))}
         </div>
@@ -219,9 +208,7 @@ export function LetterViewer({ letter, onClose, onDelete }: LetterViewerProps) {
       <div className="text-center">
         <button
           onClick={() => {
-            if (confirm("Delete this letter permanently?")) {
-              onDelete(letter.id);
-            }
+            if (confirm("Delete this letter permanently?")) onDelete(letter.id);
           }}
           className="text-xs font-medium px-4 py-2"
           style={{ color: "var(--error)" }}
