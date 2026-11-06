@@ -8,7 +8,6 @@
     "dev": "pnpm --filter @future-letters/web dev",
     "build": "pnpm --filter @future-letters/web build",
     "preview": "pnpm --filter @future-letters/web preview",
-    "typecheck": "pnpm --filter @future-letters/web exec tsc -b",
-    "test": "pnpm --filter @future-letters/web test"
+    "typecheck": "pnpm --filter @future-letters/web exec tsc -b"
   }
 }
