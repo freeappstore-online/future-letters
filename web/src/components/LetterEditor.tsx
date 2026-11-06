@@ -512,5 +512,3 @@ export function LetterEditor({ onSave, onCancel }: LetterEditorProps) {
   );
 }
 
-// Re-export block types so other files can import them
-export type { RatingBlock, ChoiceBlock, YesNoBlock, ScaleBlock };

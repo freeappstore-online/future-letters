@@ -15,7 +15,7 @@ function loadLetters(): Letter[] {
     const data = localStorage.getItem(STORAGE_KEY);
     const parsed: Letter[] = data ? JSON.parse(data) : [];
     // back-compat: letters saved before deliveryTime existed
-    return parsed.map((l) => ({ deliveryTime: "09:00", ...l }));
+    return parsed.map((l) => ({ ...l, deliveryTime: l.deliveryTime ?? "09:00" }));
   } catch {
     return [];
   }
