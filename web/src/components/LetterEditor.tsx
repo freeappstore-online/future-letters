@@ -141,7 +141,7 @@ export function LetterEditor({ onSave, onCancel }: LetterEditorProps) {
   // min date = tomorrow
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split("T")[0];
+  const minDate = tomorrow.toLocaleDateString("en-CA"); // local YYYY-MM-DD
 
   const isValid = title.trim() && deliveryDate && deliveryTime;
 
